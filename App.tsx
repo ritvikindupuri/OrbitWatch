@@ -6,7 +6,7 @@ import { DashboardPanel } from './components/DashboardPanel';
 import MapDisplay from './components/MapDisplay';
 import { ArchiveModal } from './components/ArchiveModal';
 import { fetchLiveSatelliteCatalog } from './services/satelliteData';
-import { generateAnomalyAnalysis } from './services/geminiService';
+import { generateAnomalyAnalysis } from './services/analysisService';
 
 // --- LIVE DATA MODE ---
 // Setting to false uses live API calls. Mock data has been removed.
