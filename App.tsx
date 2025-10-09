@@ -6,7 +6,7 @@ import { DashboardPanel } from './components/DashboardPanel';
 import MapDisplay from './components/MapDisplay';
 import { ArchiveModal } from './components/ArchiveModal';
 import { fetchLiveSatelliteCatalog } from './services/satelliteData';
-import { generateAnomalyAnalysis } from './services/geminiService';
+import { generateAnomalyAnalysis } from './services/analysisService';
 
 // --- LIVE DATA MODE ---
 // Setting to false uses live API calls. Mock data has been removed.
@@ -99,10 +99,10 @@ const App: React.FC = () => {
               : a
           ));
         } catch (error) {
-           console.error(`Failed to get AI analysis for ${targetSat.OBJECT_NAME}`, error);
+           console.error(`Failed to get ML analysis for ${targetSat.OBJECT_NAME}`, error);
            setAlerts(prev => prev.map(a => 
             a.timestamp === pendingAlert.timestamp 
-              ? { ...a, analysisState: 'failed', details: { description: 'AI analysis failed.', assessment: 'Could not connect to the model.', riskLevel: 'Low', riskScore: 10, mitreTechnique: 'N/A', spartaClassification: 'N/A' } }
+              ? { ...a, analysisState: 'failed', details: { description: 'ML analysis failed.', assessment: 'Could not connect to the model.', riskLevel: 'Low', riskScore: 10, mitreTechnique: 'N/A', spartaClassification: 'N/A' } }
               : a
           ));
         }
