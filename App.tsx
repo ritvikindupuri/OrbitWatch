@@ -92,12 +92,29 @@ const App: React.FC = () => {
         
         try {
           const analysisDetails = await generateAnomalyAnalysis(targetSat);
+
+          const finalAlert: AnomalyAlert = {
+             satellite: targetSat,
+             analysisState: 'complete',
+             details: analysisDetails,
+             timestamp: pendingAlert.timestamp
+          };
             
           setAlerts(prev => prev.map(a => 
             a.timestamp === pendingAlert.timestamp 
-              ? { ...a, analysisState: 'complete', details: analysisDetails }
+              ? finalAlert
               : a
           ));
+
+          // Asynchronously log the alert to the backend without waiting
+          fetch('http://localhost:3001/api/log', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ alert: finalAlert })
+          }).catch(err => {
+            console.error("Failed to log anomaly to backend:", err);
+          });
+
         } catch (error) {
            console.error(`Failed to get AI analysis for ${targetSat.OBJECT_NAME}`, error);
            setAlerts(prev => prev.map(a => 
