@@ -1,8 +1,19 @@
 import { RealSatellite } from '../types';
 
-const ISS_TLE_API_URL = 'https://celestrak.com/NORAD/elements/gp.php?GROUP=stations&FORMAT=json';
+const ISS_TLE_API_URL = 'https://celestrak.com/NORAD/elements/gp.php?GROUP=stations&FORMAT=json-tle';
 // Using 'galileo' as a representative group for major ESA operational satellites.
-const ESA_TLE_API_URL = 'https://celestrak.com/NORAD/elements/gp.php?GROUP=galileo&FORMAT=json';
+const ESA_TLE_API_URL = 'https://celestrak.com/NORAD/elements/gp.php?GROUP=galileo&FORMAT=json-tle';
+
+function inferOwnerFromName(name: string): string {
+    const lowerName = name.toLowerCase();
+    if (lowerName.includes('css') || lowerName.includes('shenzhou') || lowerName.includes('tianhe') || lowerName.includes('wentian') || lowerName.includes('mengtian') || lowerName.includes('tianzhou')) return 'China';
+    if (lowerName.includes('iss')) return 'Multi-national';
+    if (lowerName.includes('soyuz') || lowerName.includes('progress') || lowerName.includes('kosmos')) return 'Russia';
+    if (lowerName.includes('dragon') || lowerName.includes('cygnus') || lowerName.includes('starlink')) return 'USA';
+    if (lowerName.includes('gsat')) return 'India';
+    if (lowerName.includes('galileo')) return 'ESA';
+    return 'N/A';
+}
 
 async function fetchTleData(url: string, source: string): Promise<RealSatellite[]> {
     try {
@@ -12,41 +23,31 @@ async function fetchTleData(url: string, source: string): Promise<RealSatellite[
             throw new Error(`TLE API for ${source} failed with status: ${response.status}`);
         }
         
-        const responseText = await response.text();
-        let data: any[];
+        const tleData = await response.text();
+        const lines = tleData.trim().split(/\r?\n/);
+        const satellites: RealSatellite[] = [];
 
-        try {
-            data = JSON.parse(responseText);
-        } catch (jsonError) {
-            console.error(`Failed to parse JSON from ${source}. The API may be down or returned an error page. Response was:`, responseText);
-            throw new Error(`Invalid JSON response from ${source}.`);
-        }
+        for (let i = 0; i < lines.length; i += 3) {
+            const name = lines[i].trim();
+            const tle1 = lines[i + 1]?.trim();
+            const tle2 = lines[i + 2]?.trim();
 
-        if (!Array.isArray(data)) {
-            console.error(`Expected an array from ${source} but received something else:`, data);
-            throw new Error(`Unexpected data format from ${source}.`);
-        }
-
-        const mappedData = data.map(sat => ({
-            OBJECT_NAME: sat.OBJECT_NAME,
-            NORAD_CAT_ID: sat.NORAD_CAT_ID,
-            TLE_LINE1: sat.TLE_LINE1,
-            TLE_LINE2: sat.TLE_LINE2,
-            OWNER: sat.COUNTRY_CODE || 'N/A',
-            OBJECT_TYPE: sat.OBJECT_TYPE,
-            LAUNCH_DATE: sat.LAUNCH_DATE,
-        }));
-        
-        // Validate that TLE data is present before returning
-        const validData = mappedData.filter(sat => {
-            if (sat.TLE_LINE1 && sat.TLE_LINE2) {
-                return true;
+            if (name && tle1 && tle2) {
+                const noradId = parseInt(tle1.substring(2, 7), 10);
+                if (!isNaN(noradId)) {
+                    satellites.push({
+                        OBJECT_NAME: name,
+                        NORAD_CAT_ID: noradId,
+                        TLE_LINE1: tle1,
+                        TLE_LINE2: tle2,
+                        OWNER: inferOwnerFromName(name),
+                        OBJECT_TYPE: 'UNKNOWN',
+                        LAUNCH_DATE: 'N/A',
+                    });
+                }
             }
-            console.warn(`Excluding satellite ${sat.NORAD_CAT_ID} (${sat.OBJECT_NAME}) due to missing TLE data.`);
-            return false;
-        });
-
-        return validData;
+        }
+        return satellites;
 
     } catch (error) {
         console.error(`Fatal: Could not fetch or parse satellite data from ${source}.`, error);
